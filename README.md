@@ -42,7 +42,20 @@ background daemon or telemetry service.
 System Monitor requires Omarchy 4.0 or newer with shell plugin support.
 
 ```sh
-omarchy plugin add https://github.com/Harshith292002/omarchy-system-monitor.git --enable
+omarchy plugin add https://github.com/viniciosrab/omarchy-system-monitor.git --enable
+```
+
+To show CPU, RAM, and GPU together in the bar, switch it to the `Both` mode:
+
+```sh
+omarchy bar set vinicios.system-monitor barMode Both
+```
+
+If you had the upstream plugin installed, remove it so the bar does not show two
+monitors:
+
+```sh
+omarchy plugin remove harshith.system-monitor --yes
 ```
 
 The shell normally picks up the plugin immediately. If the widget does not
@@ -74,7 +87,7 @@ pressure. Warning and critical colors follow the active Omarchy theme.
 | Network throughput | `/proc/net/route`, `/proc/net/dev` |
 | Disk throughput | `/proc/diskstats` and `/sys/class/block` |
 | CPU temperature | `/sys/class/hwmon` (`coretemp`, `k10temp`, or `zenpower`) |
-| GPU load, temperature, and VRAM | `/sys/class/drm/card*/device` (`gpu_busy_percent`, `hwmon`, `mem_info_vram_*`) |
+| GPU load, temperature, and VRAM | `/sys/class/drm/card*/device` (`gpu_busy_percent`, `hwmon`, `mem_info_vram_*`), or `nvidia-smi` when sysfs has no utilization counter |
 | Filesystem capacity | `df -P -k -l -T` |
 
 Temperature is shown when a supported package sensor is available. Disk
@@ -96,16 +109,18 @@ subsets:
 | `i915` (Intel, pre-Arc) | no | yes, kernel 6.12+ (`temp1_input`) | no |
 | `xe` (Intel, Arc/Meteor Lake/Lunar Lake+) | no | yes, kernel 6.15+ (`temp2_input` — `xe` has no `temp1`) | no |
 | `nouveau` | no | yes (`temp1_input`) | no |
-| NVIDIA proprietary | no | no | no |
+| NVIDIA proprietary | yes (`nvidia-smi`) | yes (`nvidia-smi`) | yes (`nvidia-smi`) |
 
 Only `amdgpu` publishes a device-wide utilization counter in sysfs. Intel
 exposes utilization through the PMU or per-client `fdinfo`, both of which need
-either elevated capabilities or per-process accounting. The NVIDIA proprietary
-driver doesn't register a `hwmon` device at all — not even for temperature —
-so every reading, utilization included, requires NVML (`nvidia-smi`). Reading
-any of these would mean spawning a helper process on every sample, which this
-plugin deliberately avoids, so a card that cannot be read is left out rather
-than reported as idle, and NVIDIA is unsupported outright.
+either elevated capabilities or per-process accounting, so a card that cannot
+be read is left out rather than reported as idle.
+
+The NVIDIA proprietary driver doesn't register a `hwmon` device at all — not
+even for temperature — so every reading needs NVML. When sensor discovery finds
+no sysfs utilization counter, this fork runs `nvidia-smi` once per sample for
+the first GPU. If `nvidia-smi` is missing or fails, it stops asking and the GPU
+is left out, same as upstream.
 
 A card with a temperature sensor but no utilization counter still gets a
 section, showing just the tiles it can fill. When nothing is readable, the
@@ -123,8 +138,8 @@ Open **Setup → Plugins → System Monitor** to change these values:
 
 | Setting | Default | Range or behavior |
 | --- | ---: | --- |
-| Bar display | Adaptive | `Adaptive`, `CPU`, `Memory`, `GPU`, `Both`, or `Icon` (glyph only; still tints at warning/critical) |
-| Closed refresh | 5 s | 2–60 seconds |
+| Bar display | Adaptive | `Adaptive`, `CPU`, `Memory`, `GPU`, `Both` (`CPU 15% · RAM 26% · GPU 5%`), or `Icon` (glyph only; still tints at warning/critical) |
+| Closed refresh | 5 s | 1–60 seconds |
 | Open refresh | 2 s | 1–10 seconds |
 | Warning threshold | 80% | 50–95% |
 | Critical threshold | 95% | 60–100% |
@@ -133,13 +148,13 @@ Open **Setup → Plugins → System Monitor** to change these values:
 ## Update
 
 ```sh
-omarchy plugin update harshith.system-monitor --yes
+omarchy plugin update vinicios.system-monitor --yes
 ```
 
 ## Remove
 
 ```sh
-omarchy plugin remove harshith.system-monitor --yes
+omarchy plugin remove vinicios.system-monitor --yes
 ```
 
 Removing the plugin removes its widget and checkout. It does not change system
@@ -148,8 +163,9 @@ packages or files outside Omarchy's plugin configuration.
 ## Dependencies and privacy
 
 There are no third-party packages or services to install. The plugin uses
-`bash` and `df`, which are part of a standard Omarchy installation. `btop` is
-optional and is only launched when you request it.
+`bash` and `df`, which are part of a standard Omarchy installation. On NVIDIA
+cards it also uses `nvidia-smi`, which ships with the proprietary driver
+(`nvidia-utils`). `btop` is optional and is only launched when you request it.
 
 All monitoring stays on-device. The plugin does not use the network, write a
 metrics database, collect credentials, or send telemetry. Its only persistent
@@ -175,4 +191,4 @@ omarchy restart shell
 
 ## License
 
-[MIT](LICENSE) © 2026 Harshith Chennupati.
+[MIT](LICENSE) © 2026 Harshith Chennupati. Fork changes by viniciosrab.
