@@ -356,7 +356,7 @@ Panel {
     horizontalMargin: 6
     active: root.warning || root.critical
     activeColor: root.critical ? root.urgent : root.warningColor
-    tooltipText: root.tooltipText()
+    tooltipText: ""
     onPressed: function(buttonCode) { root.barPressed(buttonCode) }
   }
 
@@ -368,7 +368,7 @@ Panel {
     text: root.heroGlyph
     active: root.warning || root.critical
     activeColor: root.critical ? root.urgent : root.warningColor
-    tooltipText: root.tooltipText()
+    tooltipText: ""
     onPressed: function(buttonCode) { root.barPressed(buttonCode) }
   }
 
